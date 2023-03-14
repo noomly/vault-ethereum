@@ -17,7 +17,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
+	// "errors"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -30,12 +30,12 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	bip44 "github.com/immutability-io/go-ethereum-hdwallet"
+	bip44 "github.com/miguelmota/go-ethereum-hdwallet"
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-	"github.com/immutability-io/vault-ethereum/util"
+	"github.com/pianity/vault-ethereum/util"
 )
 
 const (
@@ -71,11 +71,13 @@ func (account *AccountJSON) ValidAddress(toAddress *common.Address) error {
 
 // TransactionParams are typical parameters for a transaction
 type TransactionParams struct {
-	Nonce    uint64          `json:"nonce"`
-	Address  *common.Address `json:"address"`
-	Amount   *big.Int        `json:"amount"`
-	GasPrice *big.Int        `json:"gas_price"`
-	GasLimit uint64          `json:"gas_limit"`
+	Nonce                   uint64          `json:"nonce"`
+	Address                 *common.Address `json:"address"`
+	Amount                  *big.Int        `json:"amount"`
+	GasPrice                *big.Int        `json:"gas_price"`
+	MaxFeePerGas            *big.Int        `json:"max_fee_per_gas"`
+	MaxPriorityFeePerGas    *big.Int        `json:"max_priority_fee_per_gas"`
+	GasLimit                uint64          `json:"gas_limit"`
 }
 
 func accountPaths(b *PluginBackend) []*framework.Path {
@@ -222,6 +224,16 @@ Sign a transaction.
 					Description: "The gas price for the transaction in wei.",
 					Default:     "0",
 				},
+                "max_fee_per_gas": {
+                    Type:        framework.TypeString,
+                    Description: "The maximum fee per gas for the transaction in wei.",
+                    Default:     "0",
+                },
+                "max_priority_fee_per_gas": {
+                    Type:        framework.TypeString,
+                    Description: "The maximum priority fee per gas for the transaction in wei.",
+                    Default:     "0",
+                },
 			},
 			ExistenceCheck: pathExistenceCheck,
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -523,20 +535,21 @@ func (b *PluginBackend) getData(client *ethclient.Client, fromAddress common.Add
 
 // NewWalletTransactor is used with Token contracts
 func (b *PluginBackend) NewWalletTransactor(chainID *big.Int, hdwallet *bip44.Wallet, account *accounts.Account) (*bind.TransactOpts, error) {
-	return &bind.TransactOpts{
-		From: account.Address,
-		Signer: func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
-			if address != account.Address {
-				return nil, errors.New("not authorized to sign this account")
-			}
-			signedTx, err := hdwallet.SignTx(*account, tx, chainID)
-			if err != nil {
-				return nil, err
-			}
-
-			return signedTx, nil
-		},
-	}, nil
+    return nil, nil
+	// return &bind.TransactOpts{
+	// 	From: account.Address,
+	// 	Signer: func(signer types.Signer, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	// 		if address != account.Address {
+	// 			return nil, errors.New("not authorized to sign this account")
+	// 		}
+	// 		signedTx, err := hdwallet.SignTx(*account, tx, chainID)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	//
+	// 		return signedTx, nil
+	// 	},
+	// }, nil
 }
 
 func (b *PluginBackend) getBaseData(client *ethclient.Client, fromAddress common.Address, data *framework.FieldData, addressField string) (*TransactionParams, error) {
@@ -545,6 +558,8 @@ func (b *PluginBackend) getBaseData(client *ethclient.Client, fromAddress common
 	nonceData := "0"
 	var nonce uint64
 	var amount *big.Int
+	var maxFeePerGas *big.Int
+	var maxPriorityFeePerGas *big.Int
 	var gasPriceIn *big.Int
 	_, ok := data.GetOk("amount")
 	if ok {
@@ -566,6 +581,26 @@ func (b *PluginBackend) getBaseData(client *ethclient.Client, fromAddress common
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	_, ok = data.GetOk("max_fee_per_gas")
+	if ok {
+		maxFeePerGas = util.ValidNumber(data.Get("max_fee_per_gas").(string))
+		if maxFeePerGas == nil {
+			return nil, fmt.Errorf("invalid max_fee_per_gas")
+		}
+	} else {
+		maxFeePerGas = util.ValidNumber("0")
+	}
+
+	_, ok = data.GetOk("max_priority_fee_per_gas")
+	if ok {
+		maxPriorityFeePerGas = util.ValidNumber(data.Get("max_priority_fee_per_gas").(string))
+		if maxPriorityFeePerGas == nil {
+			return nil, fmt.Errorf("invalid max_priority_fee_per_gas")
+		}
+	} else {
+		maxPriorityFeePerGas = util.ValidNumber("0")
 	}
 
 	_, ok = data.GetOk("gas_price")
@@ -591,6 +626,8 @@ func (b *PluginBackend) getBaseData(client *ethclient.Client, fromAddress common
 			Nonce:    nonce,
 			Address:  &address,
 			Amount:   amount,
+            MaxFeePerGas: maxFeePerGas,
+            MaxPriorityFeePerGas: maxPriorityFeePerGas,
 			GasPrice: gasPriceIn,
 			GasLimit: 0,
 		}, nil
@@ -599,6 +636,8 @@ func (b *PluginBackend) getBaseData(client *ethclient.Client, fromAddress common
 		Nonce:    nonce,
 		Address:  nil,
 		Amount:   amount,
+        MaxFeePerGas: maxFeePerGas,
+        MaxPriorityFeePerGas: maxPriorityFeePerGas,
 		GasPrice: gasPriceIn,
 		GasLimit: 0,
 	}, nil
@@ -651,7 +690,19 @@ func (b *PluginBackend) pathTransfer(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	tx := types.NewTransaction(transactionParams.Nonce, *transactionParams.Address, transactionParams.Amount, transactionParams.GasLimit, transactionParams.GasPrice, txDataToSign)
+	// tx := types.NewTransaction(transactionParams.Nonce, *transactionParams.Address, transactionParams.Amount, transactionParams.GasLimit, transactionParams.GasPrice, txDataToSign)
+
+	tx := types.NewTx(
+		&types.DynamicFeeTx{
+			Nonce:     transactionParams.Nonce,
+			GasTipCap: transactionParams.MaxPriorityFeePerGas,
+			GasFeeCap: transactionParams.MaxFeePerGas,
+			Gas:       transactionParams.GasLimit,
+			To:        transactionParams.Address,
+			// Value:     value,
+			Data:      txDataToSign,
+		})
+
 	signedTx, err := wallet.SignTx(*account, tx, chainID)
 	if err != nil {
 		return nil, err
@@ -814,7 +865,19 @@ func (b *PluginBackend) pathSignTx(ctx context.Context, req *logical.Request, da
 		return nil, err
 	}
 
-	tx := types.NewTransaction(transactionParams.Nonce, *transactionParams.Address, transactionParams.Amount, transactionParams.GasLimit, transactionParams.GasPrice, txDataToSign)
+	// tx := types.NewTransaction(transactionParams.Nonce, *transactionParams.Address, transactionParams.Amount, transactionParams.GasLimit, transactionParams.GasPrice, txDataToSign)
+
+	tx := types.NewTx(
+		&types.DynamicFeeTx{
+			Nonce:     transactionParams.Nonce,
+			GasTipCap: transactionParams.MaxPriorityFeePerGas,
+			GasFeeCap: transactionParams.MaxFeePerGas,
+			Gas:       transactionParams.GasLimit,
+			To:        transactionParams.Address,
+			// Value:     value,
+			Data:      txDataToSign,
+		})
+
 
 	signedTx, err := wallet.SignTx(*account, tx, chainID)
 	if err != nil {
@@ -825,14 +888,16 @@ func (b *PluginBackend) pathSignTx(ctx context.Context, req *logical.Request, da
 
 	return &logical.Response{
 		Data: map[string]interface{}{
-			"transaction_hash":   signedTx.Hash().Hex(),
-			"signed_transaction": hexutil.Encode(signedTxBuff.Bytes()),
-			"from":               account.Address.Hex(),
-			"to":                 transactionParams.Address.String(),
-			"amount":             transactionParams.Amount.String(),
-			"nonce":              strconv.FormatUint(transactionParams.Nonce, 10),
-			"gas_price":          transactionParams.GasPrice.String(),
-			"gas_limit":          strconv.FormatUint(transactionParams.GasLimit, 10),
+			"transaction_hash":         signedTx.Hash().Hex(),
+			"signed_transaction":       hexutil.Encode(signedTxBuff.Bytes()),
+			"from":                     account.Address.Hex(),
+			"to":                       transactionParams.Address.String(),
+			"amount":                   transactionParams.Amount.String(),
+			"nonce":                    strconv.FormatUint(transactionParams.Nonce, 10),
+			"max_fee_per_gas":          transactionParams.MaxFeePerGas.String(),
+			"max_priority_fee_per_gas": transactionParams.MaxPriorityFeePerGas.String(),
+			"gas_price":                transactionParams.GasPrice.String(),
+			"gas_limit":                strconv.FormatUint(transactionParams.GasLimit, 10),
 		},
 	}, nil
 

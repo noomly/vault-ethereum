@@ -8,6 +8,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,8 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-	"github.com/immutability-io/vault-ethereum/contracts/erc721"
-	"github.com/immutability-io/vault-ethereum/util"
+	"github.com/pianity/vault-ethereum/contracts/erc721"
+	"github.com/pianity/vault-ethereum/util"
 )
 
 const erc721Contract string = "erc-721"
@@ -1049,256 +1050,262 @@ func (b *PluginBackend) pathERC721IsApprovedForAll(ctx context.Context, req *log
 }
 
 func (b *PluginBackend) pathERC721TokenByIndex(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.configured(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	name := data.Get("name").(string)
-
-	accountJSON, err := readAccount(ctx, req, name)
-	if err != nil {
-		return nil, err
-	}
-	wallet, account, err := getWalletAndAccount(*accountJSON)
-	if err != nil {
-		return nil, err
-	}
-
-	tokenAddress := common.HexToAddress(data.Get("contract").(string))
-
-	chainID := util.ValidNumber(config.ChainID)
-	if chainID == nil {
-		return nil, fmt.Errorf("invalid chain ID")
-	}
-
-	client, err := ethclient.Dial(config.getRPCURL())
-	if err != nil {
-		return nil, err
-	}
-
-	instance, err := erc721.NewErc721(tokenAddress, client)
-	if err != nil {
-		return nil, err
-	}
-	callOpts := &bind.CallOpts{}
-
-	transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
-	if err != nil {
-		return nil, err
-	}
-	index := util.ValidNumber(data.Get("index").(string))
-
-	//transactOpts needs gas etc.
-	tokenSession := &erc721.Erc721Session{
-		Contract:     instance,  // Generic contract caller binding to set the session for
-		CallOpts:     *callOpts, // Call options to use throughout this session
-		TransactOpts: *transactOpts,
-	}
-
-	tokenID, err := tokenSession.TokenByIndex(index)
-	if err != nil {
-		return nil, err
-	}
-
-	return &logical.Response{
-		Data: map[string]interface{}{
-			"contract": tokenAddress.Hex(),
-			"token":    tokenID.String(),
-			"index":    index.String(),
-		},
-	}, nil
+    return nil, errors.New("not implemented")
+	//
+	// config, err := b.configured(ctx, req)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// name := data.Get("name").(string)
+	//
+	// accountJSON, err := readAccount(ctx, req, name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// wallet, account, err := getWalletAndAccount(*accountJSON)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// tokenAddress := common.HexToAddress(data.Get("contract").(string))
+	//
+	// chainID := util.ValidNumber(config.ChainID)
+	// if chainID == nil {
+	// 	return nil, fmt.Errorf("invalid chain ID")
+	// }
+	//
+	// client, err := ethclient.Dial(config.getRPCURL())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// instance, err := erc721.NewErc721(tokenAddress, client)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// callOpts := &bind.CallOpts{}
+	//
+	// transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// index := util.ValidNumber(data.Get("index").(string))
+	//
+	// //transactOpts needs gas etc.
+	// tokenSession := &erc721.Erc721Session{
+	// 	Contract:     instance,  // Generic contract caller binding to set the session for
+	// 	CallOpts:     *callOpts, // Call options to use throughout this session
+	// 	TransactOpts: *transactOpts,
+	// }
+	//
+	// tokenID, err := tokenSession.TokenByIndex(index)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// return &logical.Response{
+	// 	Data: map[string]interface{}{
+	// 		"contract": tokenAddress.Hex(),
+	// 		"token":    tokenID.String(),
+	// 		"index":    index.String(),
+	// 	},
+	// }, nil
 }
 
 func (b *PluginBackend) pathERC721TokenOfOwnerByIndex(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.configured(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	name := data.Get("name").(string)
-
-	accountJSON, err := readAccount(ctx, req, name)
-	if err != nil {
-		return nil, err
-	}
-	wallet, account, err := getWalletAndAccount(*accountJSON)
-	if err != nil {
-		return nil, err
-	}
-
-	tokenAddress := common.HexToAddress(data.Get("contract").(string))
-
-	chainID := util.ValidNumber(config.ChainID)
-	if chainID == nil {
-		return nil, fmt.Errorf("invalid chain ID")
-	}
-
-	client, err := ethclient.Dial(config.getRPCURL())
-	if err != nil {
-		return nil, err
-	}
-
-	instance, err := erc721.NewErc721(tokenAddress, client)
-	if err != nil {
-		return nil, err
-	}
-	callOpts := &bind.CallOpts{}
-
-	transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
-	if err != nil {
-		return nil, err
-	}
-	index := util.ValidNumber(data.Get("index").(string))
-
-	transactionParams, err := b.getBaseData(client, account.Address, data, "owner")
-	if err != nil {
-		return nil, err
-	}
-
-	//transactOpts needs gas etc.
-	tokenSession := &erc721.Erc721Session{
-		Contract:     instance,  // Generic contract caller binding to set the session for
-		CallOpts:     *callOpts, // Call options to use throughout this session
-		TransactOpts: *transactOpts,
-	}
-
-	tokenID, err := tokenSession.TokenOfOwnerByIndex(*transactionParams.Address, index)
-	if err != nil {
-		return nil, err
-	}
-
-	return &logical.Response{
-		Data: map[string]interface{}{
-			"contract": tokenAddress.Hex(),
-			"owner":    transactionParams.Address.Hex(),
-			"index":    index.String(),
-			"token":    tokenID.String(),
-		},
-	}, nil
+    return nil, errors.New("not implemented")
+	// config, err := b.configured(ctx, req)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// name := data.Get("name").(string)
+	//
+	// accountJSON, err := readAccount(ctx, req, name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// wallet, account, err := getWalletAndAccount(*accountJSON)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// tokenAddress := common.HexToAddress(data.Get("contract").(string))
+	//
+	// chainID := util.ValidNumber(config.ChainID)
+	// if chainID == nil {
+	// 	return nil, fmt.Errorf("invalid chain ID")
+	// }
+	//
+	// client, err := ethclient.Dial(config.getRPCURL())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// instance, err := erc721.NewErc721(tokenAddress, client)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// callOpts := &bind.CallOpts{}
+	//
+	// transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// index := util.ValidNumber(data.Get("index").(string))
+	//
+	// transactionParams, err := b.getBaseData(client, account.Address, data, "owner")
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// //transactOpts needs gas etc.
+	// tokenSession := &erc721.Erc721Session{
+	// 	Contract:     instance,  // Generic contract caller binding to set the session for
+	// 	CallOpts:     *callOpts, // Call options to use throughout this session
+	// 	TransactOpts: *transactOpts,
+	// }
+	//
+	// tokenID, err := tokenSession.TokenOfOwnerByIndex(*transactionParams.Address, index)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// return &logical.Response{
+	// 	Data: map[string]interface{}{
+	// 		"contract": tokenAddress.Hex(),
+	// 		"owner":    transactionParams.Address.Hex(),
+	// 		"index":    index.String(),
+	// 		"token":    tokenID.String(),
+	// 	},
+	// }, nil
 }
 
 func (b *PluginBackend) pathERC721Metadata(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.configured(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	name := data.Get("name").(string)
-
-	accountJSON, err := readAccount(ctx, req, name)
-	if err != nil {
-		return nil, err
-	}
-	wallet, account, err := getWalletAndAccount(*accountJSON)
-	if err != nil {
-		return nil, err
-	}
-
-	tokenAddress := common.HexToAddress(data.Get("contract").(string))
-
-	chainID := util.ValidNumber(config.ChainID)
-	if chainID == nil {
-		return nil, fmt.Errorf("invalid chain ID")
-	}
-
-	client, err := ethclient.Dial(config.getRPCURL())
-	if err != nil {
-		return nil, err
-	}
-
-	instance, err := erc721.NewErc721(tokenAddress, client)
-	if err != nil {
-		return nil, err
-	}
-	callOpts := &bind.CallOpts{}
-
-	transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
-	if err != nil {
-		return nil, err
-	}
-
-	//transactOpts needs gas etc.
-	tokenSession := &erc721.Erc721Session{
-		Contract:     instance,  // Generic contract caller binding to set the session for
-		CallOpts:     *callOpts, // Call options to use throughout this session
-		TransactOpts: *transactOpts,
-	}
-
-	supply, err := tokenSession.TotalSupply()
-	if err != nil {
-		return nil, err
-	}
-	nftName, err := tokenSession.Name()
-	if err != nil {
-		return nil, err
-	}
-	symbol, err := tokenSession.Symbol()
-	if err != nil {
-		return nil, err
-	}
-
-	return &logical.Response{
-		Data: map[string]interface{}{
-			"contract": tokenAddress.Hex(),
-			"name":     nftName,
-			"symbol":   symbol,
-			"supply":   supply.String(),
-		},
-	}, nil
+    return nil, errors.New("not implemented")
+	// config, err := b.configured(ctx, req)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// name := data.Get("name").(string)
+	//
+	// accountJSON, err := readAccount(ctx, req, name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// wallet, account, err := getWalletAndAccount(*accountJSON)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// tokenAddress := common.HexToAddress(data.Get("contract").(string))
+	//
+	// chainID := util.ValidNumber(config.ChainID)
+	// if chainID == nil {
+	// 	return nil, fmt.Errorf("invalid chain ID")
+	// }
+	//
+	// client, err := ethclient.Dial(config.getRPCURL())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// instance, err := erc721.NewErc721(tokenAddress, client)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// callOpts := &bind.CallOpts{}
+	//
+	// transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// //transactOpts needs gas etc.
+	// tokenSession := &erc721.Erc721Session{
+	// 	Contract:     instance,  // Generic contract caller binding to set the session for
+	// 	CallOpts:     *callOpts, // Call options to use throughout this session
+	// 	TransactOpts: *transactOpts,
+	// }
+	//
+	// supply, err := tokenSession.TotalSupply()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// nftName, err := tokenSession.Name()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// symbol, err := tokenSession.Symbol()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// return &logical.Response{
+	// 	Data: map[string]interface{}{
+	// 		"contract": tokenAddress.Hex(),
+	// 		"name":     nftName,
+	// 		"symbol":   symbol,
+	// 		"supply":   supply.String(),
+	// 	},
+	// }, nil
 }
+
 func (b *PluginBackend) pathERC721TokenURI(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.configured(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	name := data.Get("name").(string)
-	tokenID := util.ValidNumber(data.Get("token_id").(string))
-
-	accountJSON, err := readAccount(ctx, req, name)
-	if err != nil {
-		return nil, err
-	}
-	wallet, account, err := getWalletAndAccount(*accountJSON)
-	if err != nil {
-		return nil, err
-	}
-
-	tokenAddress := common.HexToAddress(data.Get("contract").(string))
-
-	chainID := util.ValidNumber(config.ChainID)
-	if chainID == nil {
-		return nil, fmt.Errorf("invalid chain ID")
-	}
-
-	client, err := ethclient.Dial(config.getRPCURL())
-	if err != nil {
-		return nil, err
-	}
-
-	instance, err := erc721.NewErc721(tokenAddress, client)
-	if err != nil {
-		return nil, err
-	}
-	callOpts := &bind.CallOpts{}
-
-	transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
-	if err != nil {
-		return nil, err
-	}
-
-	//transactOpts needs gas etc.
-	tokenSession := &erc721.Erc721Session{
-		Contract:     instance,  // Generic contract caller binding to set the session for
-		CallOpts:     *callOpts, // Call options to use throughout this session
-		TransactOpts: *transactOpts,
-	}
-
-	tokenURI, err := tokenSession.TokenURI(tokenID)
-	if err != nil {
-		return nil, err
-	}
-	return &logical.Response{
-		Data: map[string]interface{}{
-			"contract":  tokenAddress.Hex(),
-			"token_uri": tokenURI,
-		},
-	}, nil
+    return nil, errors.New("not implemented")
+	// config, err := b.configured(ctx, req)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// name := data.Get("name").(string)
+	// tokenID := util.ValidNumber(data.Get("token_id").(string))
+	//
+	// accountJSON, err := readAccount(ctx, req, name)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// wallet, account, err := getWalletAndAccount(*accountJSON)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// tokenAddress := common.HexToAddress(data.Get("contract").(string))
+	//
+	// chainID := util.ValidNumber(config.ChainID)
+	// if chainID == nil {
+	// 	return nil, fmt.Errorf("invalid chain ID")
+	// }
+	//
+	// client, err := ethclient.Dial(config.getRPCURL())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// instance, err := erc721.NewErc721(tokenAddress, client)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// callOpts := &bind.CallOpts{}
+	//
+	// transactOpts, err := b.NewWalletTransactor(chainID, wallet, account)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	//
+	// //transactOpts needs gas etc.
+	// tokenSession := &erc721.Erc721Session{
+	// 	Contract:     instance,  // Generic contract caller binding to set the session for
+	// 	CallOpts:     *callOpts, // Call options to use throughout this session
+	// 	TransactOpts: *transactOpts,
+	// }
+	//
+	// tokenURI, err := tokenSession.TokenURI(tokenID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &logical.Response{
+	// 	Data: map[string]interface{}{
+	// 		"contract":  tokenAddress.Hex(),
+	// 		"token_uri": tokenURI,
+	// 	},
+	// }, nil
 }
