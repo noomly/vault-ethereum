@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	bip44 "github.com/miguelmota/go-ethereum-hdwallet"
+	bip44 "github.com/pianity/go-ethereum-hdwallet"
 	"github.com/tyler-smith/go-bip39"
 
 	"github.com/hashicorp/vault/sdk/framework"
@@ -699,7 +699,7 @@ func (b *PluginBackend) pathTransfer(ctx context.Context, req *logical.Request, 
 			GasFeeCap: transactionParams.MaxFeePerGas,
 			Gas:       transactionParams.GasLimit,
 			To:        transactionParams.Address,
-			// Value:     value,
+			Value:     transactionParams.Amount,
 			Data:      txDataToSign,
 		})
 
@@ -870,11 +870,11 @@ func (b *PluginBackend) pathSignTx(ctx context.Context, req *logical.Request, da
 	tx := types.NewTx(
 		&types.DynamicFeeTx{
 			Nonce:     transactionParams.Nonce,
+			To:        transactionParams.Address,
+			Value:     transactionParams.Amount,
+			Gas:       transactionParams.GasLimit,
 			GasTipCap: transactionParams.MaxPriorityFeePerGas,
 			GasFeeCap: transactionParams.MaxFeePerGas,
-			Gas:       transactionParams.GasLimit,
-			To:        transactionParams.Address,
-			// Value:     value,
 			Data:      txDataToSign,
 		})
 
@@ -883,13 +883,19 @@ func (b *PluginBackend) pathSignTx(ctx context.Context, req *logical.Request, da
 	if err != nil {
 		return nil, err
 	}
-	var signedTxBuff bytes.Buffer
-	signedTx.EncodeRLP(&signedTxBuff)
+
+    signedTxBuff, err := signedTx.MarshalBinary();
+    if err != nil {
+        return nil, err
+    }
+
+	// var signedTxBuff bytes.Buffer
+	// signedTx.EncodeRLP(&signedTxBuff)
 
 	return &logical.Response{
 		Data: map[string]interface{}{
 			"transaction_hash":         signedTx.Hash().Hex(),
-			"signed_transaction":       hexutil.Encode(signedTxBuff.Bytes()),
+			"signed_transaction":       hexutil.Encode(signedTxBuff),
 			"from":                     account.Address.Hex(),
 			"to":                       transactionParams.Address.String(),
 			"amount":                   transactionParams.Amount.String(),
