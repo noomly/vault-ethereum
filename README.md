@@ -1,4 +1,11 @@
-# Vault Ethereum Plugin v0.3.0
+# Note about this fork
+
+This fork was created as a way to add support for EIP-1559 transactions for the path `sign-tx`. As
+it currently is, support for other paths has been mostly dropped as only `sign-tx` is required for
+the specific usecase this fork has been created for. Dependencies has also been updated and Go's
+version bumped.
+
+# Vault Ethereum Plugin v0.4.0
 
 The first incarnation of the `vault-ethereum` plugin was an exercise in [experimenting with an idea](https://www.hashicorp.com/resources/vault-platform-enterprise-blockchain) and [proving a point](https://immutability.io/). 2 years later, I feel both ends were acheived.
 
