@@ -529,6 +529,8 @@ func (b *PluginBackend) getData(client *ethclient.Client, fromAddress common.Add
 		Address:  transactionParams.Address,
 		Amount:   transactionParams.Amount,
 		GasPrice: transactionParams.GasPrice,
+        MaxFeePerGas: transactionParams.MaxFeePerGas,
+        MaxPriorityFeePerGas: transactionParams.MaxPriorityFeePerGas,
 		GasLimit: gasLimit,
 	}, nil
 }
